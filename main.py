@@ -1,14 +1,18 @@
-import pandas as pd
+import re
+import nltk
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
-from collections import Counter
-import nltk
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+import pandas as pd
 import matplotlib.pyplot as plt
+from collections import Counter
 from scipy.stats import chi2_contingency
-import re
+
+nltk.download("vader_lexicon")
 
 RAW_DATASET_PATH = 'datasets/news_articles.csv'
 CLEANED_DATASET_PATH = 'datasets/news_articles_cleaned.csv'
+
 STOP_WORDS = set(stopwords.words('english'))
 
 
@@ -116,6 +120,16 @@ def perform_chi_square_test(dataset):
     else:
         print("\nFail to reject the null hypothesis: There is no significant relationship between sensationalism and fake news.")
 
+def analyze_sentiment(text):
+    analyzer = SentimentIntensityAnalyzer()
+    sentiment_score = analyzer.polarity_scores(text)
+    if sentiment_score["compound"] >= 0.05:
+        return "Positive"
+    elif sentiment_score["compound"] <= -0.05:
+        return "Negative"
+    else:
+        return "Neutral"
+
 
 def main():
     raw_news_dataset = load_dataset(RAW_DATASET_PATH)
@@ -153,6 +167,10 @@ def main():
     plot_average_lengths(text_labels, text_lengths, "Average Text Lengths for Real and Fake News", "Average Length (characters)")
 
     perform_chi_square_test(filtered_news_dataset)
+
+    filtered_news_dataset["sentiment"] = filtered_news_dataset["text"].apply(analyze_sentiment)
+    print("\nSentiment analysis results:")
+    print(filtered_news_dataset[["text","sentiment"]].head())
 
 if __name__ == "__main__":
     main()
