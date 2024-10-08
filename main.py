@@ -3,6 +3,7 @@ from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from collections import Counter
 import nltk
+import matplotlib.pyplot as plt
 
 RAW_DATASET_PATH = 'datasets/news_articles.csv'
 CLEANED_DATASET_PATH = 'datasets/news_articles_cleaned.csv'
@@ -61,6 +62,28 @@ def print_top_keywords(counter, description, top_n=10):
     for word, count in top_keywords:
         print(f"{word}: {count} times")
 
+def calculate_average_lengths(dataset):
+    """Calculate average title and text lengths for real and fake news."""
+    dataset["title_length"] = dataset["title"].apply(len)
+    dataset["text_length"] = dataset["text"].apply(len)
+
+    real_news = dataset[dataset["label"] == "Real"]
+    fake_news = dataset[dataset["label"] == "Fake"]
+
+    avg_real_title_length = real_news["title_length"].mean()
+    avg_fake_title_length = fake_news["title_length"].mean()
+    avg_real_text_length = real_news["text_length"].mean()
+    avg_fake_text_length = fake_news["text_length"].mean()
+
+    return avg_real_title_length, avg_fake_title_length, avg_real_text_length, avg_fake_text_length
+
+def print_average_lengths(avg_real_title_length, avg_fake_title_length, avg_real_text_length, avg_fake_text_length):
+    """Print average title and text lengths for real and fake news."""
+    print(f"\nAverage title length for real news: {avg_real_title_length:.1f} characters")
+    print(f"Average title length for fake news: {avg_fake_title_length:.1f} characters")
+    print(f"Average text length for real news: {avg_real_text_length:.1f} characters")
+    print(f"Average text length for fake news: {avg_fake_text_length:.1f} characters")
+
 
 def main():
     raw_news_dataset = load_dataset(RAW_DATASET_PATH)
@@ -85,6 +108,10 @@ def main():
 
     print_top_keywords(title_counter, "fake news titles")
     print_top_keywords(text_counter, "fake news text")
+
+    avg_real_title_length, avg_fake_title_length, avg_real_text_length, avg_fake_text_length = calculate_average_lengths(filtered_news_dataset)
+    print_average_lengths(avg_real_title_length, avg_fake_title_length, avg_real_text_length, avg_fake_text_length)
+
 
 if __name__ == "__main__":
     main()
