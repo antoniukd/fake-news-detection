@@ -1,3 +1,5 @@
+import logging
+from typing import List, Dict
 import re
 import nltk
 from nltk.tokenize import word_tokenize
@@ -7,8 +9,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from collections import Counter
 from scipy.stats import chi2_contingency
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score
 
-nltk.download("vader_lexicon")
+logging.basicConfig(level=logging.INFO)
 
 RAW_DATASET_PATH = 'datasets/news_articles.csv'
 CLEANED_DATASET_PATH = 'datasets/news_articles_cleaned.csv'
@@ -129,48 +135,88 @@ def analyze_sentiment(text):
         return "Negative"
     else:
         return "Neutral"
+    
+def fake_news_prediction(title, news_source, keywords, fake_news_percentage):
+    title_contains_keyword = any(keyword in title.lower() for keyword in keywords)
+    if news_source in fake_news_percentage:
+        source_fake_percentage = fake_news_percentage[news_source]
+    else:
+        source_fake_percentage = 0.0
+
+    if title_contains_keyword and source_fake_percentage > 0.5:
+        return "Fake"
+    else:
+        return "Real"
+    
+def extract_keywords(fake_news_data: pd.DataFrame, top_n: int = 10) -> List[str]:
+    vectorizer = CountVectorizer(stop_words="english")
+    X = vectorizer.fit_transform(fake_news_data["text"])
+    word_frequencies = X.toarray().sum(axis=0)
+    feature_names = vectorizer.get_feature_names_out()
+    keywords = [feature_names[i] for i in word_frequencies.argsort()[-top_n:][::-1]]
+    return keywords
+
+def calculate_fake_news_percentage(filtered_news_dataset: pd.DataFrame) -> Dict[str, float]:
+    site_counts = filtered_news_dataset["site_url"].value_counts()
+    fake_site_counts = filtered_news_dataset[filtered_news_dataset["label"] == "Fake"]["site_url"].value_counts()
+    fake_news_percentage = (fake_site_counts / site_counts).fillna(0).to_dict()
+    return fake_news_percentage
 
 
 def main():
-    raw_news_dataset = load_dataset(RAW_DATASET_PATH)
-    if raw_news_dataset is None:
-        return
+    try:
 
-    cleaned_news_dataset = clean_dataset(raw_news_dataset)
-    save_dataset(cleaned_news_dataset, CLEANED_DATASET_PATH)
+        # raw_news_dataset = load_dataset(RAW_DATASET_PATH)
+        # if raw_news_dataset is None:
+        #     return
 
-    filtered_news_dataset = load_dataset(CLEANED_DATASET_PATH)
-    if filtered_news_dataset is None:
-        return
+        # cleaned_news_dataset = clean_dataset(raw_news_dataset)
+        # save_dataset(cleaned_news_dataset, CLEANED_DATASET_PATH)
 
-    sorted_source_counts = calculate_source_statistics(filtered_news_dataset)
-    print_top_sources(sorted_source_counts)
+        filtered_news_dataset = load_dataset(CLEANED_DATASET_PATH)
+        if filtered_news_dataset is None:
+            return
 
-    title_counter = Counter()
-    text_counter = Counter()
+        # sorted_source_counts = calculate_source_statistics(filtered_news_dataset)
+        # print_top_sources(sorted_source_counts)
 
-    for _, row in filtered_news_dataset.iterrows():
-        update_counters(row, title_counter, text_counter, STOP_WORDS)
+        # title_counter = Counter()
+        # text_counter = Counter()
 
-    print_top_keywords(title_counter, "fake news titles")
-    print_top_keywords(text_counter, "fake news text")
+        # for _, row in filtered_news_dataset.iterrows():
+        #     update_counters(row, title_counter, text_counter, STOP_WORDS)
 
-    avg_real_title_length, avg_fake_title_length, avg_real_text_length, avg_fake_text_length = calculate_average_lengths(filtered_news_dataset)
-    print_average_lengths(avg_real_title_length, avg_fake_title_length, avg_real_text_length, avg_fake_text_length)
+        # print_top_keywords(title_counter, "fake news titles")
+        # print_top_keywords(text_counter, "fake news text")
 
-    title_labels = ["Real Title", "Fake Title"]
-    title_lengths = [avg_real_title_length, avg_fake_title_length]
-    plot_average_lengths(title_labels, title_lengths, "Average Title Lengths for Real and Fake News", "Average Length (characters)")
+        # avg_real_title_length, avg_fake_title_length, avg_real_text_length, avg_fake_text_length = calculate_average_lengths(filtered_news_dataset)
+        # print_average_lengths(avg_real_title_length, avg_fake_title_length, avg_real_text_length, avg_fake_text_length)
 
-    text_labels = ["Real Text", "Fake Text"]
-    text_lengths = [avg_real_text_length, avg_fake_text_length]
-    plot_average_lengths(text_labels, text_lengths, "Average Text Lengths for Real and Fake News", "Average Length (characters)")
+        # title_labels = ["Real Title", "Fake Title"]
+        # title_lengths = [avg_real_title_length, avg_fake_title_length]
+        # plot_average_lengths(title_labels, title_lengths, "Average Title Lengths for Real and Fake News", "Average Length (characters)")
 
-    perform_chi_square_test(filtered_news_dataset)
+        # text_labels = ["Real Text", "Fake Text"]
+        # text_lengths = [avg_real_text_length, avg_fake_text_length]
+        # plot_average_lengths(text_labels, text_lengths, "Average Text Lengths for Real and Fake News", "Average Length (characters)")
 
-    filtered_news_dataset["sentiment"] = filtered_news_dataset["text"].apply(analyze_sentiment)
-    print("\nSentiment analysis results:")
-    print(filtered_news_dataset[["text","sentiment"]].head())
+        # perform_chi_square_test(filtered_news_dataset)
+
+        # filtered_news_dataset["sentiment"] = filtered_news_dataset["text"].apply(analyze_sentiment)
+        # print("\nSentiment analysis results:")
+        # print(filtered_news_dataset[["text","sentiment"]].head())
+
+        fake_news_data = filtered_news_dataset[filtered_news_dataset["label"] == "Fake"]
+        keywords = extract_keywords(fake_news_data)
+        fake_news_percentage = calculate_fake_news_percentage(filtered_news_dataset)
+
+        text_input = "Breaking: a new planet has been discovered by scientists!"
+        source_input = "100percentfedup.com"
+        prediction = fake_news_prediction(text_input, source_input, keywords, fake_news_percentage)
+        logging.info(f"Prediction for '{text_input}' from {source_input}: {prediction}")
+   
+    except Exception as e:
+        logging.error(f"An error occurred: {e}")
 
 if __name__ == "__main__":
     main()
