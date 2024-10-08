@@ -4,6 +4,8 @@ from nltk.corpus import stopwords
 from collections import Counter
 import nltk
 import matplotlib.pyplot as plt
+from scipy.stats import chi2_contingency
+import re
 
 RAW_DATASET_PATH = 'datasets/news_articles.csv'
 CLEANED_DATASET_PATH = 'datasets/news_articles_cleaned.csv'
@@ -92,6 +94,29 @@ def plot_average_lengths(labels, lengths, title, ylabel):
     plt.xticks(rotation=45)
     plt.show()
 
+def detect_sensationalism(text):
+    sensational_words = ["shocking", "amazing", "unbelievable", "miracle", "incredible"]
+    for keyword in sensational_words:
+        if re.search(r"\b" + keyword + r"\b", text, re.IGNORECASE):
+            return True
+        return False
+    
+def perform_chi_square_test(dataset):
+    dataset["sensationalism"] = dataset["text"].apply(detect_sensationalism)
+    contingency_table = pd.crosstab(dataset["sensationalism"], dataset["label"])
+    print(contingency_table)
+
+    chi2, p, dof, expected = chi2_contingency(contingency_table)
+    print(f"\nChi-square statistic: {chi2:.4f}")
+    print(f"p-value: {p:.4f}")
+
+    alpha = 0.05
+    if p <= alpha:
+        print("\nReject the null hypothesis: There is a significant relationship between sensationalism and fake news.")
+    else:
+        print("\nFail to reject the null hypothesis: There is no significant relationship between sensationalism and fake news.")
+
+
 def main():
     raw_news_dataset = load_dataset(RAW_DATASET_PATH)
     if raw_news_dataset is None:
@@ -127,6 +152,7 @@ def main():
     text_lengths = [avg_real_text_length, avg_fake_text_length]
     plot_average_lengths(text_labels, text_lengths, "Average Text Lengths for Real and Fake News", "Average Length (characters)")
 
+    perform_chi_square_test(filtered_news_dataset)
 
 if __name__ == "__main__":
     main()
