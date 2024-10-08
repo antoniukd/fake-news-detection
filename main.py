@@ -84,6 +84,13 @@ def print_average_lengths(avg_real_title_length, avg_fake_title_length, avg_real
     print(f"Average text length for real news: {avg_real_text_length:.1f} characters")
     print(f"Average text length for fake news: {avg_fake_text_length:.1f} characters")
 
+def plot_average_lengths(labels, lengths, title, ylabel):
+    plt.figure(figsize=(10, 6))
+    plt.bar(labels, lengths, color=["green", "red"])
+    plt.title(title)
+    plt.ylabel(ylabel)
+    plt.xticks(rotation=45)
+    plt.show()
 
 def main():
     raw_news_dataset = load_dataset(RAW_DATASET_PATH)
@@ -111,6 +118,14 @@ def main():
 
     avg_real_title_length, avg_fake_title_length, avg_real_text_length, avg_fake_text_length = calculate_average_lengths(filtered_news_dataset)
     print_average_lengths(avg_real_title_length, avg_fake_title_length, avg_real_text_length, avg_fake_text_length)
+
+    title_labels = ["Real Title", "Fake Title"]
+    title_lengths = [avg_real_title_length, avg_fake_title_length]
+    plot_average_lengths(title_labels, title_lengths, "Average Title Lengths for Real and Fake News", "Average Length (characters)")
+
+    text_labels = ["Real Text", "Fake Text"]
+    text_lengths = [avg_real_text_length, avg_fake_text_length]
+    plot_average_lengths(text_labels, text_lengths, "Average Text Lengths for Real and Fake News", "Average Length (characters)")
 
 
 if __name__ == "__main__":
