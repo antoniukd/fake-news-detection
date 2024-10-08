@@ -2,9 +2,12 @@ import pandas as pd
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from collections import Counter
+import nltk
 
 RAW_DATASET_PATH = 'datasets/news_articles.csv'
 CLEANED_DATASET_PATH = 'datasets/news_articles_cleaned.csv'
+STOP_WORDS = set(stopwords.words('english'))
+
 
 def load_dataset(file_path):
     try:
@@ -39,6 +42,26 @@ def print_top_sources(source_counts, top_n=10):
     for source, row in source_counts.tail(top_n).iterrows():
         print(f"News {source}: {row['Percentage of Fake News, %']:.1f}% of fake news")
 
+def process_words(text, stop_words):
+    words = word_tokenize(text)
+    return [word.lower() for word in words if word.isalpha() and word.lower() not in stop_words]
+
+
+def update_counters(row, title_counter, text_counter, stop_words):
+    title_words = process_words(row["title"], stop_words)
+    text_words = process_words(row["text"], stop_words)
+
+    if row["label"] == "Fake":
+        title_counter.update(title_words)
+        text_counter.update(text_words)
+
+def print_top_keywords(counter, description, top_n=10):
+    top_keywords = counter.most_common(top_n)
+    print(f"\nTop {top_n} most common words in {description}:")
+    for word, count in top_keywords:
+        print(f"{word}: {count} times")
+
+
 def main():
     raw_news_dataset = load_dataset(RAW_DATASET_PATH)
     if raw_news_dataset is None:
@@ -53,6 +76,15 @@ def main():
 
     sorted_source_counts = calculate_source_statistics(filtered_news_dataset)
     print_top_sources(sorted_source_counts)
+
+    title_counter = Counter()
+    text_counter = Counter()
+
+    for _, row in filtered_news_dataset.iterrows():
+        update_counters(row, title_counter, text_counter, STOP_WORDS)
+
+    print_top_keywords(title_counter, "fake news titles")
+    print_top_keywords(text_counter, "fake news text")
 
 if __name__ == "__main__":
     main()
